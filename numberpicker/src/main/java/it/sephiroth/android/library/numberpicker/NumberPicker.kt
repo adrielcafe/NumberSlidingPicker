@@ -168,8 +168,6 @@ class NumberPicker @JvmOverloads constructor(
 
                         upButton.requestFocus()
                         upButton.isPressed = true
-
-                        setProgress(progress + stepSize)
                     }
 
                     MotionEvent.ACTION_UP -> {
@@ -195,8 +193,6 @@ class NumberPicker @JvmOverloads constructor(
 
                         downButton.requestFocus()
                         downButton.isPressed = true
-
-                        setProgress(progress - stepSize)
                     }
 
                     MotionEvent.ACTION_UP -> {
