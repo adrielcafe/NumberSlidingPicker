@@ -7,20 +7,9 @@
         <item name="picker_min">0</item>
         <item name="picker_max">100</item>
         <item name="picker_stepSize">1</item>
-        <item name="picker_tracker">linear</item>
         <item name="picker_editTextStyle">@style/NumberPicker.EditTextStyle</item>
         <item name="android:paddingLeft">8dp</item>
         <item name="android:paddingRight">8dp</item>
-    </style>
-
-    <style name="NumberPicker.AnimationHorizontal">
-        <item name="android:windowEnterAnimation">@anim/anim_in_right</item>
-        <item name="android:windowExitAnimation">@anim/anim_out</item>
-    </style>
-
-    <style name="NumberPicker.AnimationVertical">
-        <item name="android:windowEnterAnimation">@anim/anim_in_bottom</item>
-        <item name="android:windowExitAnimation">@anim/anim_out</item>
     </style>
 
     <style name="NumberPicker.Filled">
