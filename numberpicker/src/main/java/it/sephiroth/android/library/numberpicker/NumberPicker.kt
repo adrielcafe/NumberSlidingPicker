@@ -3,8 +3,6 @@ package it.sephiroth.android.library.numberpicker
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.graphics.PointF
-import android.os.Handler
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.MotionEvent
@@ -36,7 +34,6 @@ class NumberPicker @JvmOverloads constructor(
     private lateinit var editText: EditText
     private lateinit var upButton: AppCompatImageButton
     private lateinit var downButton: AppCompatImageButton
-    private lateinit var tracker: Tracker
 
     private var arrowStyle: Int
     private var editTextStyleId: Int
@@ -44,10 +41,6 @@ class NumberPicker @JvmOverloads constructor(
     private var maxDistance: Int
 
     private lateinit var data: Data
-
-    private var callback = { newValue: Int ->
-        setProgress(newValue)
-    }
 
     @Suppress("MemberVisibilityCanBePrivate")
     fun setProgress(value: Int, fromUser: Boolean = true) {
@@ -105,14 +98,6 @@ class NumberPicker @JvmOverloads constructor(
 
             data = Data(value, minValue, maxValue, stepSize, orientation)
 
-            val tracker_type = array.getInteger(R.styleable.NumberPicker_picker_tracker, TRACKER_LINEAR)
-            tracker = when (tracker_type) {
-                TRACKER_LINEAR -> LinearTracker(this, maxDistance, orientation, callback)
-                TRACKER_EXPONENTIAL -> ExponentialTracker(this, maxDistance, orientation, callback)
-                else -> {
-                    LinearTracker(this, maxDistance, orientation, callback)
-                }
-            }
             inflateChildren()
 
             editText.setText(data.value.toString())
@@ -255,10 +240,6 @@ class NumberPicker @JvmOverloads constructor(
     }
 
     companion object {
-
-        const val TRACKER_LINEAR = 0
-        const val TRACKER_EXPONENTIAL = 1
-
         val FOCUSED_STATE_ARRAY = intArrayOf(android.R.attr.state_focused)
         val UNFOCUSED_STATE_ARRAY = intArrayOf(0, -android.R.attr.state_focused)
     }
@@ -285,141 +266,4 @@ class Data(value: Int, minValue: Int, maxValue: Int, var stepSize: Int, val orie
             if (newValue > value) value = newValue
         }
 
-}
-
-internal abstract class Tracker(
-        val numberPicker: NumberPicker,
-        private val maxDistance: Int,
-        val orientation: Int,
-        val callback: (Int) -> Unit) {
-
-    internal var started: Boolean = false
-    internal var initialValue: Int = 0
-    internal var downPosition: Float = 0f
-
-    @Suppress("MemberVisibilityCanBePrivate")
-    internal var minPoint = PointF(0f, 0f)
-
-    open fun begin(x: Float, y: Float) {
-        calcDistance()
-
-        downPosition = if (orientation == LinearLayout.VERTICAL) -y else x
-        minPoint.set((-minDistance), (-minDistance))
-        initialValue = numberPicker.progress
-        started = true
-    }
-
-    abstract fun addMovement(x: Float, y: Float)
-
-    open fun end() {
-        started = false
-    }
-
-    var minDistance: Float = 0f
-
-    private fun calcDistance() {
-        val loc = intArrayOf(0, 0)
-        val metrics = numberPicker.resources.displayMetrics
-        numberPicker.getLocationOnScreen(loc)
-        loc[0] += numberPicker.width / 2
-        loc[1] += numberPicker.height / 2
-
-        minDistance = if (orientation == LinearLayout.VERTICAL) {
-            min(maxDistance, min(loc[1], metrics.heightPixels - loc[1])).toFloat()
-        } else {
-            min(maxDistance, min(loc[0], metrics.widthPixels - loc[0])).toFloat()
-        }
-    }
-}
-
-internal class ExponentialTracker(
-        numberPicker: NumberPicker,
-        maxDistance: Int,
-        orientation: Int,
-        callback: (Int) -> Unit) : Tracker(numberPicker, maxDistance, orientation, callback) {
-
-    private var time: Long = 1000L
-    private var direction: Int = 0
-
-    private val handler = Handler()
-
-    private var runnable: Runnable = object : Runnable {
-        override fun run() {
-            if (!started) return
-
-            if (direction > 0)
-                callback.invoke(numberPicker.progress + numberPicker.stepSize)
-            else if (direction < 0)
-                callback.invoke(numberPicker.progress - numberPicker.stepSize)
-
-            if (started)
-                handler.postDelayed(this, time)
-        }
-    }
-
-    override fun begin(x: Float, y: Float) {
-        super.begin(x, y)
-        direction = 0
-        time = MAX_TIME_DELAY
-        handler.post(runnable)
-    }
-
-    override fun addMovement(x: Float, y: Float) {
-        val currentPosition = if (orientation == LinearLayout.VERTICAL) -y else x
-        val diff: Float
-        val perc: Float
-
-        diff = max(-minDistance, min(currentPosition - downPosition, minDistance))
-        perc = (diff / minDistance)
-
-        direction = when {
-            perc > 0 -> 1
-            perc < 0 -> -1
-            else -> 0
-        }
-
-        time = (MAX_TIME_DELAY - ((MAX_TIME_DELAY - MIN_TIME_DELAY).toFloat() * abs(perc))).toLong()
-    }
-
-    override fun end() {
-        super.end()
-        handler.removeCallbacks(runnable)
-    }
-
-    companion object {
-        const val MAX_TIME_DELAY = 200L
-        const val MIN_TIME_DELAY = 16L
-    }
-}
-
-internal class LinearTracker(
-        numberPicker: NumberPicker,
-        maxDistance: Int,
-        orientation: Int,
-        callback: (Int) -> Unit) : Tracker(numberPicker, maxDistance, orientation, callback) {
-
-
-    override fun addMovement(x: Float, y: Float) {
-        val currentPosition = if (orientation == LinearLayout.VERTICAL) -y else x
-
-        val diff: Float
-        val perc: Float
-        var finalValue: Int
-
-        diff = max(-minDistance, min(currentPosition - downPosition, minDistance))
-        perc = (diff / minDistance)
-        finalValue = initialValue + (abs(numberPicker.maxValue - numberPicker.minValue) * perc).toInt()
-
-        var diffValue = finalValue - numberPicker.progress
-
-        if (numberPicker.stepSize > 1) {
-            if (diffValue % numberPicker.stepSize != 0) {
-                diffValue -= (diffValue % numberPicker.stepSize)
-            }
-        }
-
-        finalValue = numberPicker.progress + diffValue
-
-        callback.invoke(finalValue)
-    }
 }
